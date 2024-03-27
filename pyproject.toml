@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logging-loki"
+authors = [{ name = "LeeCQ", email = "lcq@leecq.cn" }]
+description = "将日志发送到远程Loki"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["httpx>=0.25.1"]
+dynamic = ["version"]
+
+classifiers = [
+    "Development Status :: 1 - Planning",
+    # "Environment :: Console",
+    # "Framework :: Pydantic :: 2",
+    "Natural Language :: Chinese (Simplified)",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    # "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/lee-cq/logging-loki"
+Issues = "https://github.com/lee-cq/logging-loki/issues"
+
+[tool.setuptools]
+packages = ["logging_loki"]
+
+[tool.setuptools.dynamic]
+version = { attr = "logging_loki.version.__version__" }
