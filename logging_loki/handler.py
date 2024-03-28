@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import queue
 import time
 import gzip
@@ -9,6 +10,7 @@ from logging import Formatter, Handler, LogRecord
 from concurrent.futures import ThreadPoolExecutor
 
 from httpx import Client
+import httpx
 
 from logging_loki.version import __version__
 from logging_loki.formater import LokiFormatter
@@ -48,6 +50,7 @@ class LokiHandler(Handler):
         self.setFormatter(
             LokiFormatter(fmt=fmt, tags=tags, included_field=included_field, fqdn=fqdn)
         )
+        self.total_losed_logs = 0
 
     def setFormatter(self, fmt: Formatter | None) -> None:
         if not isinstance(fmt, LokiFormatter):
@@ -65,9 +68,12 @@ class LokiHandler(Handler):
         self._client.headers.setdefault("User-Agen", DEFUALT_UA)
         return self._client
 
+    def test_client(self) -> bool:
+        return self.client_info["base_url"].startswith("http")
+
     def should_flush(self, record):
         """检查Buffer是否满了或者日志级别达到flushLevel"""
-        return time.time() - self.last_flush_time > 2 or self.buffer.qsize() > 50
+        return time.time() - self.last_flush_time > 2
 
     def emit(self, record: LogRecord) -> None:
         """记录一条日志到缓存，并按需生成一个定时器，在定时器结束时将日志实际Push到Loki。
@@ -78,8 +84,13 @@ class LokiHandler(Handler):
             warn(f"[LokiHandler]{self.get_name()} 已经关闭，日志无法再被记录到Loki.")
             return  # 如果Headler已经关闭, 不再添加日志
 
-        self.buffer.put_nowait(self.formatter.format(record=record))
-
+        re_text = self.formatter.format(record=record)
+        if not (
+            isinstance(re_text, dict) and "stream" in re_text and "values" in re_text
+        ):
+            self.handleError("self.formatter.format 必须时一个Dict")
+            return
+        self.buffer.put_nowait(re_text)
         if self.should_flush(record):
             self.last_flush_time = time.time()
             self.flush()
@@ -103,8 +114,6 @@ class LokiHandler(Handler):
 
             if not streams:
                 return
-            print(f"flush logs {len(streams)}")
-
             if not self.t_pool._shutdown:
                 self.t_pool.submit(self.post_logs, streams)
             else:
@@ -113,20 +122,37 @@ class LokiHandler(Handler):
             self.release()
 
     def post_logs(self, streams: list, retry_times=0):
+        # 超时才应该重传，其他的错误都不应该重传
         gz_streams = gzip.compress(json.dumps({"streams": streams}).encode())
         while retry_times < 3:
-            res = self.client.post(
-                "/loki/api/v1/push",
-                data=gz_streams,
-                headers={
-                    "Content-Type": "application/json",
-                    "Content-Encoding": "gzip",
-                },
-            )
-            if res.is_success:
-                return
-            print(f"Error: {res.status_code} - {res.text}")
-            retry_times += 1
-            time.sleep(retry_times)
+            try:
+                if os.getenv("LOKI_LOGGING_DEBUG"):
+                    print(
+                        f"[{time.time()}]LOKI LOGGING flush logs {len(streams)}, "
+                        f"data size {len(gz_streams)}, retry {retry_times}"
+                    )
+                time.sleep(retry_times)
+                res = self.client.post(
+                    "/loki/api/v1/push",
+                    data=gz_streams,
+                    headers={
+                        "Content-Type": "application/json",
+                        "Content-Encoding": "gzip",
+                    },
+                )
+                if res.is_success:
+                    return
+                print(f"Error: {res.status_code} - {res.text}")
+                if 400 <= res.status_code <= 499:
+                    retry_times = 100
+                    continue
+
+            except httpx.HTTPError:
+                pass
+            finally:
+                retry_times += 1
         else:
-            raise RuntimeError("多次重试，推送失败，条目")
+            self.total_losed_logs += len(streams)
+            raise RuntimeError(
+                f"多次推送失败, 舍弃日志数量: {len(streams)} / total: {self.total_losed_logs}"
+            )

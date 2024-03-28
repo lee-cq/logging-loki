@@ -1,0 +1,29 @@
+name: "Loki Logging Benchmark"
+
+on:
+  workflow_dispatch:
+
+env: 
+  LOKI_URL: ${{secrets.LOKI_URL}}
+  LOKI_USERNAME: ${{secrets.LOKI_UESRNAME}}
+  LOKI_PASSWORD: ${{secrets.LOKI_PASSWORD}}
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+      
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+      - name: setup packages
+        run: pip install -U pip && pip install -e .
+      
+      - name: Run
+        env:
+          LOKI_LOGGING_DEBUG: true
+        run: python tests/test_benchmark.py

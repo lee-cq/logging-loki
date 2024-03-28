@@ -2,7 +2,7 @@ import socket
 from logging import Formatter, LogRecord
 from typing import Any, Literal, Mapping
 
-DEFUALT_FIELD = (
+DEFUALT_FIELD_MAX = (
     "filename",
     "funcName",
     "levelname",
@@ -13,6 +13,18 @@ DEFUALT_FIELD = (
     "pathname",
     "processName",
     "threadName",
+)
+
+DEFUALT_FIELD = (
+    "levelname",
+    "name",
+    "module",
+    "threadName",
+)
+
+DEFUALT_FIELD_MIN = (
+    "levelname",
+    "name",
 )
 
 
@@ -45,14 +57,18 @@ class LokiFormatter(Formatter):
         ), f"tags 参数必须是dict or None, 而不是{type(tags)}"
         self.tags = tags if tags else dict()
 
-        self.included_field = included_field if included_field else DEFUALT_FIELD
+        self.included_field = included_field if included_field else DEFUALT_FIELD_MIN
 
     def format(self, record: LogRecord) -> dict:
         formated_text = super().format(record=record)
+        record_tags = getattr(record, "tags", dict())
+        if not isinstance(record_tags, dict):
+            record_tags = dict()
         return {
             "stream": {
                 "instance": self.host,
                 **self.tags,
+                **record_tags,
                 **{
                     i: str(record.__dict__[i])
                     for i in record.__dict__
