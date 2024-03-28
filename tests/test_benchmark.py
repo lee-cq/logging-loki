@@ -43,8 +43,8 @@ def main():
 
     logger.addHandler(handler)
 
-    for i in range(1000_000):
-        time.sleep(0.0001)
+    for i in range(1_000_000):
+        time.sleep(0.000000001)
         random.choice([error, info])(i)
 
 

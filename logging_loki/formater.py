@@ -66,7 +66,7 @@ class LokiFormatter(Formatter):
             record_tags = dict()
 
         metadata = {
-            **record_tags,
+            **{str(k): str(v) for k , v in record_tags.items()},
             **{
                 i: str(record.__dict__[i])
                 for i in record.__dict__

@@ -16,6 +16,9 @@ streams = [
     {
         "stream": {
             "app": "test1",
+            "instencs": "test-ff",
+            "test": "ess",
+            "it": i // 100,
         },
         "values": [
             [
@@ -29,12 +32,12 @@ streams = [
                 ),
                 {"i": str(i)},
             ]
-            for i in range(19999)
+            
         ],
-    }
+    }for i in range(57000)
 ]
 
-print(streams)
+# print(streams)
 
 
 handler.post_logs(streams=streams, retry_times=2)

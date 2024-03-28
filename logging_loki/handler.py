@@ -18,6 +18,11 @@ from logging_loki.formater import LokiFormatter
 DEFUALT_UA = f"logging-loki/{__version__} Python {py_version}"
 
 
+def debuger_print(*args, **kwargs):
+    if os.getenv("LOKI_LOGGING_DEBUG"):
+        print(*args, **kwargs)
+
+
 class LokiHandler(Handler):
     """Loki日志发送"""
 
@@ -126,11 +131,10 @@ class LokiHandler(Handler):
         gz_streams = gzip.compress(json.dumps({"streams": streams}).encode())
         while retry_times < 3:
             try:
-                if os.getenv("LOKI_LOGGING_DEBUG"):
-                    print(
-                        f"[{time.time()}]LOKI LOGGING flush logs {len(streams)}, "
-                        f"data size {len(gz_streams)}, retry {retry_times}"
-                    )
+                debuger_print(
+                    f"[{time.strftime('%Y-%m-%d %H:%M:%S.')}]LOKI LOGGING flush logs {len(streams)}, "
+                    f"data size {len(gz_streams)}, retry {retry_times}"
+                )
                 time.sleep(retry_times)
                 res = self.client.post(
                     "/loki/api/v1/push",
@@ -140,15 +144,15 @@ class LokiHandler(Handler):
                         "Content-Encoding": "gzip",
                     },
                 )
+                debuger_print(f"HTTP STATUS: {res.status_code} - {res.text}")
                 if res.is_success:
                     return
-                print(f"Error: {res.status_code} - {res.text}")
                 if 400 <= res.status_code <= 499:
                     retry_times = 100
                     continue
 
             except httpx.HTTPError as _e:
-                print(f"HTTPError {_e}")
+                debuger_print(f"HTTPError {_e}")
             finally:
                 retry_times += 1
         else:
