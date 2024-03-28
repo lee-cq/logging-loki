@@ -1,9 +1,21 @@
 import logging
 import random
 import os
+import sys
 import time
 
 from logging_loki.handler import LokiHandler
+
+def get_argv(index, defualt=None):
+    try:
+        return sys.argv[index]
+    except IndexError:
+        return defualt
+
+SIZE = int(get_argv(1, 1_000))
+H_TYPE = get_argv(2, "loki")
+GZIP = bool(get_argv(3, 'true').lower() in ['t', 'true', '1'])
+PUT_TIME = int(get_argv(4, 2))
 
 
 logger = logging.getLogger("logging-loki.test_benchmark")
@@ -17,14 +29,15 @@ def error(times):
 
 
 def info(times):
-    logger.info(
-        "".join(
+    _log= "".join(
             random.choices(
                 "qwertyuiopasdfghjkl;zxcvbnm,./1234567890-=`!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:ZXCVBNM<>?",
                 k=99,
             )
-        ),
-        extra={"tags": {"t": times}},
+        )
+    logger.info(
+        _log,
+        extra={"tags": {"t": times}}
     )
 
 
@@ -35,6 +48,7 @@ def main():
         username=os.getenv("LOKI_USERNAME"),
         password=os.getenv("LOKI_PASSWORD"),
         tags={"app": "test_benchmark"},
+        gziped=GZIP,
     )
     h_std = logging.StreamHandler()
     h_std.setLevel("INFO")
@@ -47,13 +61,14 @@ def main():
     if not handler.test_client():
         raise ValueError("LOKI_URL None")
     print(f"Will Push to Loki: {handler.client_info['base_url']}")
-
-    logger.addHandler(handler)
+    logger.setLevel("INFO")
+    logger.addHandler(handler if H_TYPE == 'loki' else h_std)
     # logger.addHandler(h_std)
 
-    for i in range(1_000_000):
+    for i in range(SIZE):
         time.sleep(0.000000001)
-        random.choice([error, info])(i)
+        # random.choice([error, info])(i)
+        info(i)
 
 
 if __name__ == "__main__":

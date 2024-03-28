@@ -1,4 +1,3 @@
-import io
 import json
 import os
 import queue
@@ -6,7 +5,7 @@ import time
 import gzip
 from sys import version as py_version
 from warnings import warn
-from logging import Formatter, Handler, LogRecord
+from logging import Formatter, Handler
 from concurrent.futures import ThreadPoolExecutor
 
 from httpx import Client
@@ -28,10 +27,12 @@ class LokiHandler(Handler):
 
     def __init__(
         self,
-        loki_url: str = None,
+        loki_url: str,
         username: str = None,
         password: str = None,
-        level: int | str = 0,
+        level: int | str = "ERROR",
+        gziped: bool = True,
+        flush_interval: int = 2,
         tags: dict = None,
         included_field: tuple | list | set = None,
         fmt: str = None,
@@ -48,6 +49,8 @@ class LokiHandler(Handler):
         )
 
         self.loki_tags = tags or {}
+        self.gziped = gziped
+        self.flush_interval = flush_interval
 
         self.buffer = queue.SimpleQueue()
         self.last_flush_time: float = 0
@@ -56,6 +59,9 @@ class LokiHandler(Handler):
             LokiFormatter(fmt=fmt, tags=tags, included_field=included_field, fqdn=fqdn)
         )
         self.total_losed_logs = 0
+        self.headers = {"Content-Type": "application/json"}
+        if self.gziped:
+            self.headers.update({"Content-Encoding": "gzip"})
 
     def setFormatter(self, fmt: Formatter | None) -> None:
         if not isinstance(fmt, LokiFormatter):
@@ -78,9 +84,9 @@ class LokiHandler(Handler):
 
     def should_flush(self, record):
         """检查Buffer是否满了或者日志级别达到flushLevel"""
-        return time.time() - self.last_flush_time > 2
+        return time.time() - self.last_flush_time > self.flush_interval
 
-    def emit(self, record: LogRecord) -> None:
+    def emit(self, record) -> None:
         """记录一条日志到缓存，并按需生成一个定时器，在定时器结束时将日志实际Push到Loki。
 
         如果在定时器开始前就已经将日志推送，则会有推送线程取消该定时器。
@@ -128,21 +134,27 @@ class LokiHandler(Handler):
 
     def post_logs(self, streams: list, retry_times=0):
         # 超时才应该重传，其他的错误都不应该重传
-        gz_streams = gzip.compress(json.dumps({"streams": streams}).encode())
+        data = json.dumps({"streams": streams}).encode()
+        len_data = len_gz_data = len(data)
+        if self.gziped:
+            data = gzip.compress(data)
+            len_gz_data = len(data)
+        gz_info = (
+            lambda: f"(gziped size {len_gz_data} , zip rite {(len_data - len_gz_data) / len_data * 100: .2f}%)"
+        )
+
         while retry_times < 3:
             try:
                 debuger_print(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S.')}]LOKI LOGGING flush logs {len(streams)}, "
-                    f"data size {len(gz_streams)}, retry {retry_times}"
+                    f"data size {len_data} {gz_info() if self.gziped else 'not gziped'}, retry {retry_times}"
                 )
                 time.sleep(retry_times)
+
                 res = self.client.post(
                     "/loki/api/v1/push",
-                    data=gz_streams,
-                    headers={
-                        "Content-Type": "application/json",
-                        "Content-Encoding": "gzip",
-                    },
+                    data=data,
+                    headers=self.headers,
                 )
                 debuger_print(f"HTTP STATUS: {res.status_code} - {res.text}")
                 if res.is_success:
