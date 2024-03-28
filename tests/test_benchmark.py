@@ -36,12 +36,20 @@ def main():
         password=os.getenv("LOKI_PASSWORD"),
         tags={"app": "test_benchmark"},
     )
+    h_std = logging.StreamHandler()
+    h_std.setLevel("INFO")
+    h_std.setFormatter(
+        logging.Formatter(
+            "[%(asctime)s] - %(module)s:%(lineno)d - %(levelname)s - %(message)s"
+        )
+    )
 
     if not handler.test_client():
         raise ValueError("LOKI_URL None")
     print(f"Will Push to Loki: {handler.client_info['base_url']}")
 
     logger.addHandler(handler)
+    # logger.addHandler(h_std)
 
     for i in range(1_000_000):
         time.sleep(0.000000001)

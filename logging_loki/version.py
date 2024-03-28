@@ -1,1 +1,13 @@
+
+"""
+0.0.1 - 基本功能完成
+    1. LokiHandler 能够向Loki提交数据
+    2. LokiFormatter 能够格式化数据
+
+    # TODO 当前Benchmark结果:
+        1. 在5 tags 状态下，支持稳定的每2s 7000+ 日志推送(极限状态可以到30000左右数据量，平均每条日志150字节)。
+        2. CPU占用率为 logging.StreamHandler 的2-3倍, 内存占用率为其 2 倍。
+
+"""
+
 __version__ = "0.0.1"
