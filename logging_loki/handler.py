@@ -147,8 +147,8 @@ class LokiHandler(Handler):
                     retry_times = 100
                     continue
 
-            except httpx.HTTPError:
-                pass
+            except httpx.HTTPError as _e:
+                print(f"HTTPError {_e}")
             finally:
                 retry_times += 1
         else:

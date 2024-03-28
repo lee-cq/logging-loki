@@ -64,21 +64,21 @@ class LokiFormatter(Formatter):
         record_tags = getattr(record, "tags", dict())
         if not isinstance(record_tags, dict):
             record_tags = dict()
+
+        metadata = {
+            **record_tags,
+            **{
+                i: str(record.__dict__[i])
+                for i in record.__dict__
+                if i in self.included_field
+            },
+        }
         return {
             "stream": {
                 "instance": self.host,
                 **self.tags,
-                **record_tags,
-                **{
-                    i: str(record.__dict__[i])
-                    for i in record.__dict__
-                    if i in self.included_field
-                },
             },
             "values": [
-                [
-                    str(int(record.created * 1_000_000_000)),
-                    formated_text,
-                ],
+                [str(int(record.created * 1_000_000_000)), formated_text, metadata],
             ],
         }
