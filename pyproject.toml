@@ -13,12 +13,9 @@ dynamic = ["version"]
 
 classifiers = [
     "Development Status :: 1 - Planning",
-    # "Environment :: Console",
-    # "Framework :: Pydantic :: 2",
     "Natural Language :: Chinese (Simplified)",
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
-    # "Operating System :: OS Independent",
 ]
 
 [project.urls]

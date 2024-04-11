@@ -12,6 +12,8 @@ handler = LokiHandler(
     username=os.getenv("LOKI_USERNAME"),
     password=os.getenv("LOKI_PASSWORD"),
     tags={"app": "test_loki_headler"},
+    thread_pool_size=0,
+    verify=False,
 )
 ch = logging.StreamHandler()
 ch.setLevel("DEBUG")
