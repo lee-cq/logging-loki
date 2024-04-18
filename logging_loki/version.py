@@ -22,4 +22,4 @@ TODO 优化CPU和内存占用
 TODO 减少外部依赖（弃用HTTPX，使用原生的HTTP方案）
 """
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
