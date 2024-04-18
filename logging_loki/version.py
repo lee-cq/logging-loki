@@ -13,10 +13,13 @@
         gzipd 是否进行Gzip压缩, 默认: True
         flush_interval 刷写到Loki的时间间隔, 默认: 2s
 
+0.1.2 - 
+    1. 添加metadata字段以区分tags
+    2. 完善测试输出
 
 
 TODO 优化CPU和内存占用
 TODO 减少外部依赖（弃用HTTPX，使用原生的HTTP方案）
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
