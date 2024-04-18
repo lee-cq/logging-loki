@@ -43,7 +43,7 @@ def info(times):
     logger.info(_log, extra={"tags": {"t": times}})
 
 
-def main(size=10_000, h_type="loki", gziped=True, put_time=2):
+def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001):
     handler = LokiHandler(
         level="INFO",
         loki_url=os.getenv("LOKI_URL"),
@@ -70,8 +70,7 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2):
     logger.addHandler(handler if h_type == "loki" else h_std)
 
     for i in range(size // 2):
-        time.sleep(0.000000001)
-        # random.choice([error, info])(i)
+        time.sleep(wait_time)
         info(i)
         error(i)
 
@@ -79,33 +78,42 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2):
 def bench():
     """"""
     bs = (
-        # (1_000_000, "file", True, 1),
+        (1_000_000, "file", True, 1),
         (1_000_000, "loki", True, 1),
         (1_000_000, "loki", False, 1),
-        
     )
+    sleep_times = (0, 0.001, 0.00001, 0.000000001, 0.000000001)
 
     import multiprocessing
-
+    _rrst_agv = open(f"AA_rest_agv.txt", 'w')
     _rrst = []
-    for args in bs:
-        p = multiprocessing.Process(
-            target=main,
-            args=args,
-        )
-        p.start()
-        while p.pid is None:
-            time.sleep(0.001)
-        _p = psutil.Process(p.pid)
-        rst = []
-        while p.exitcode is None:
-            rst.append((_p.cpu_times().user, float(_p.memory_info().rss)))
-            time.sleep(1)
-        _rrst.append(rst)
-        name = "_".join(str(_) for _ in args)
-        json.dump(rst, open(name + ".json", "w"))
-        with open(name + ".txt", "w") as f:
-            [print(x, y, file=f) for x, y in rst]
+    for sleep_t in sleep_times:
+        print(f"Wait Time: {sleep_t}", file=_rrst_agv)
+        for args in bs:
+            p = multiprocessing.Process(
+                target=main,
+                args=args,
+                kwargs={"wait_time": sleep_t}
+            )
+            p.start()
+            while p.pid is None:
+                time.sleep(0.001)
+            _p = psutil.Process(p.pid)
+            rst = []
+            while p.exitcode is None:
+                rst.append((_p.cpu_times().user, float(_p.memory_info().rss)))
+                time.sleep(1)
+            _rrst.append(rst)
+            name = "_".join(str(_) for _ in args)
+            # json.dump(rst, open(name + ".json", "w"))
+            # print('\n'.join(f'{x}, {y}'  for x, y in rst), file=open(name + ".txt", "w"))
+            cpus, mems = list(zip(*rst))
+            print(
+                f"{name} TIME: {len(rst)}s  CPU: [{sum(cpus) / len(cpus):.2f}s]  "
+                f"MEM: [{sum(mems) / len(mems) / 1048576:.2f}M  {max(mems) / 1048576:.2f}M]",
+                file=_rrst_agv
+            )
+   
 
     _m_len = max(len(_) for _ in _rrst)
     _rrst = [l.append((0, 0)) for l in _rrst for _ in range(_m_len - len(l))]
@@ -120,6 +128,7 @@ def bench():
 
 
 if __name__ == "__main__":
+    # set -a; . .env ; set +a
     print("start.")
 
     bench()
