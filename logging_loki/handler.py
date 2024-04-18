@@ -56,8 +56,8 @@ class LokiHandler(Handler):
                 raise ValueError()
 
         self._client = None
+        self.loki_url = loki_url
         self.client_info = dict(
-            base_url=loki_url,
             auth=(username, password) if username else None,
             headers=headers,
             **kwargs,
@@ -101,7 +101,7 @@ class LokiHandler(Handler):
         return self._client
 
     def test_client(self) -> bool:
-        return self.client_info["base_url"].startswith("http")
+        return self.loki_url.startswith("http")
 
     def should_flush(self, record):
         """检查Buffer是否满了或者日志级别达到flushLevel"""
@@ -125,6 +125,7 @@ class LokiHandler(Handler):
         ):
             self.handleError("self.formatter.format 必须时一个Dict")
             return
+        
         self.buffer.put_nowait(re_text)
         if self.should_flush(record):
             self.last_flush_time = time.time()
@@ -145,7 +146,7 @@ class LokiHandler(Handler):
             if not streams:
                 return
 
-            if  self.thread_pool_size > 0 and not self.t_pool._shutdown:
+            if self.thread_pool_size > 0 and not self.t_pool._shutdown:
                 self.t_pool.submit(self.post_logs, streams)
             else:
                 self.post_logs(streams)
@@ -170,7 +171,7 @@ class LokiHandler(Handler):
                 time.sleep(retry_times)
 
                 res = self.client.post(
-                    "/loki/api/v1/push",
+                    self.loki_url,
                     data=data,
                 )
                 debuger_print(f"HTTP STATUS: {res.status_code} - {res.text}")
@@ -189,4 +190,4 @@ class LokiHandler(Handler):
             self.total_losed_logs += len(streams)
             raise RuntimeError(
                 f"多次推送失败, 舍弃日志数量: {len(streams)} / total: {self.total_losed_logs}"
-            ) 
+            )

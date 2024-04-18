@@ -8,6 +8,7 @@ import time
 import psutil
 
 from logging_loki.handler import LokiHandler
+from logging_loki.formater import DEFUALT_FIELD_MAX
 
 
 def get_argv(index, defualt=None):
@@ -30,7 +31,7 @@ def error(times):
     try:
         100 / 0
     except Exception as _e:
-        logger.error(f"Error: {_e}", exc_info=_e, extra={"tags": {"t": times}})
+        logger.error(f"Error: {_e}", exc_info=_e, extra={"metadata": {"t": times}})
 
 
 def info(times):
@@ -40,7 +41,7 @@ def info(times):
             k=99,
         )
     )
-    logger.info(_log, extra={"tags": {"t": times}})
+    logger.info(_log, extra={"matadata": {"t": times}})
 
 
 def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001):
@@ -49,9 +50,10 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
         loki_url=os.getenv("LOKI_URL"),
         username=os.getenv("LOKI_USERNAME"),
         password=os.getenv("LOKI_PASSWORD"),
-        tags={"app": "test_benchmark", "gziped": "true"},
+        tags={"app": "test_benchmark", },
         gziped=gziped,
         flush_interval=put_time,
+        included_field=DEFUALT_FIELD_MAX,
         fmt="[%(asctime)s] - %(module)s:%(lineno)d - %(levelname)s - %(message)s",
     )
 
@@ -65,7 +67,7 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
 
     if not handler.test_client():
         raise ValueError("LOKI_URL None")
-    print(f"Will Push to Loki: {handler.client_info['base_url']}")
+    print(f"Will Push to Loki: {handler.loki_url}")
     logger.setLevel("INFO")
     logger.addHandler(handler if h_type == "loki" else h_std)
 
@@ -85,10 +87,12 @@ def bench():
     sleep_times = (0, 0.001, 0.00001, 0.000000001, 0.000000001)
 
     import multiprocessing
-    _rrst_agv = open(f"AA_rest_agv.txt", 'w')
+    _rrst_agv = open(f"AA_rest_agv.txt", 'a+')
     _rrst = []
+    print("\n\n", "=" * 50, file=_rrst_agv)
+    print(time.strftime("%Y-%m-%d %H:%M:S"), file=_rrst_agv, flush=True)
     for sleep_t in sleep_times:
-        print(f"Wait Time: {sleep_t}", file=_rrst_agv)
+        print(f"\nWait Time: {sleep_t}", file=_rrst_agv, )
         for args in bs:
             p = multiprocessing.Process(
                 target=main,
@@ -111,7 +115,8 @@ def bench():
             print(
                 f"{name} TIME: {len(rst)}s  CPU: [{sum(cpus) / len(cpus):.2f}s]  "
                 f"MEM: [{sum(mems) / len(mems) / 1048576:.2f}M  {max(mems) / 1048576:.2f}M]",
-                file=_rrst_agv
+                file=_rrst_agv,
+                flush=True,
             )
    
 

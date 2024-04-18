@@ -50,7 +50,7 @@ class LokiFormatter(Formatter):
     ) -> None:
         super().__init__(fmt, datefmt, style, validate, defaults=defaults)
 
-        self.host = socket.getfqdn() if fqdn else socket.gethostname()
+        self.hostname = socket.getfqdn() if fqdn else socket.gethostname()
 
         assert isinstance(
             tags, dict | None
@@ -60,13 +60,16 @@ class LokiFormatter(Formatter):
         self.included_field = included_field if included_field else DEFUALT_FIELD_MIN
 
     def format(self, record: LogRecord) -> dict:
-        formated_text = super().format(record=record)
         record_tags = getattr(record, "tags", dict())
         if not isinstance(record_tags, dict):
             record_tags = dict()
+        
+        recode_meta = getattr(record, "metadata", dict())
+        if not isinstance(recode_meta, dict):
+            recode_meta = dict()
 
         metadata = {
-            **{str(k): str(v) for k , v in record_tags.items()},
+            **{str(k): str(v) for k, v in recode_meta.items()},
             **{
                 i: str(record.__dict__[i])
                 for i in record.__dict__
@@ -75,10 +78,15 @@ class LokiFormatter(Formatter):
         }
         return {
             "stream": {
-                "instance": self.host,
+                "instance": self.hostname,
                 **self.tags,
+                **{str(k): str(v) for k, v in record_tags.items()}
             },
             "values": [
-                [str(int(record.created * 1_000_000_000)), formated_text, metadata],
+                [
+                    str(int(record.created * 1_000_000_000)),
+                    super().format(record=record),
+                    metadata,
+                ],
             ],
         }
