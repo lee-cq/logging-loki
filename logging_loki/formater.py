@@ -3,16 +3,23 @@ from logging import Formatter, LogRecord
 from typing import Any, Literal, Mapping
 
 DEFUALT_FIELD_MAX = (
-    "filename",
-    "funcName",
-    "levelname",
-    "lineno",
-    "module",
-    "name",
-    "process",
-    "pathname",
-    "processName",
-    "threadName",
+    "asctime",  #  表示人类易读的 LogRecord 生成时间。 默认形式为 '2003-07-08 16:49:45,896' （逗号之后的数字为时间的毫秒部分）。
+    "created",  # LogRecord 被创建的时间（即 time.time() 的返回值）。
+    "filename",  # 文件名
+    "funcName",  # 函数名
+    "levelname",  # 日志等级名称 （'DEBUG'，'INFO'，'WARNING'，'ERROR'，'CRITICAL'）
+    "levelno",  # 日志等级号
+    "lineno",  # 产生日志的行号
+    "module",  #产生日志的模块
+    "msecs",  #创建时间的毫秒部分
+    "name",  #Logger的名字
+    "pathname",  #发出日志记录调用的源文件的完整路径名（如果可用）。
+    "process",  # 进程ID（如果可用）
+    "processName",  #进程名（如果可用）
+    "relativeCreated",  # 以毫秒数表示的 LogRecord 被创建的时间，即相对于 logging 模块被加载时间的差值。
+    "thread",  #线程ID（如果可用）
+    "threadName",  # 线程名（如果可用）
+    "taskName",  # asyncio.Task 名称（如果可用）。 3.12+
 )
 
 DEFUALT_FIELD = (
