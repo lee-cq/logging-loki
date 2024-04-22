@@ -11,11 +11,11 @@ from logging_loki.handler import LokiHandler
 from logging_loki.formater import DEFUALT_FIELD_MAX
 
 
-def get_argv(index, defualt=None):
+def get_argv(index, default=None):
     try:
         return sys.argv[index]
     except IndexError:
-        return defualt
+        return default
 
 
 # SIZE = int(get_argv(1, 1_000))
@@ -46,13 +46,15 @@ def info(times):
 
 def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001):
     handler = LokiHandler(
-        level="INFO",
         loki_url=os.getenv("LOKI_URL"),
         username=os.getenv("LOKI_USERNAME"),
         password=os.getenv("LOKI_PASSWORD"),
-        tags={"app": "test_benchmark", },
-        gziped=gziped,
+        level="INFO",
+        gzipped=gziped,
         flush_interval=put_time,
+        tags={
+            "app": "test_benchmark",
+        },
         included_field=DEFUALT_FIELD_MAX,
         fmt="[%(asctime)s] - %(module)s:%(lineno)d - %(levelname)s - %(message)s",
     )
@@ -65,13 +67,18 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
         )
     )
 
-    if not handler.test_client():
+    if not handler.loki_client.loki_url:
         raise ValueError("LOKI_URL None")
-    print(f"Will Push to Loki: {handler.loki_url}")
+    print(
+        "Will Push to ",
+        f"Loki: {handler.loki_client.loki_url}" if h_type == "loki" else "File",
+    )
     logger.setLevel("INFO")
     logger.addHandler(handler if h_type == "loki" else h_std)
 
     for i in range(size // 2):
+        if h_type == "file":
+            print(f"\r {i} / {size}        ", end="")
         time.sleep(wait_time)
         info(i)
         error(i)
@@ -80,24 +87,29 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
 def bench():
     """"""
     bs = (
-        (1_000_000, "file", True, 1),
-        (1_000_000, "loki", True, 1),
-        (1_000_000, "loki", False, 1),
+        (1_000_00, "file", True, 1),
+        (1_000_00, "loki", True, 1),
+        (1_000_00, "loki", False, 1),
     )
-    sleep_times = (0, 0.001, 0.00001, 0.000000001, 0.000000001)
+    sleep_times = (
+        0.00001,
+        0.001,
+    )
 
     import multiprocessing
-    _rrst_agv = open(f"AA_rest_agv.txt", 'a+')
+
+    _rrst_agv = open(f"AA_rest_agv.txt", "a+")
     _rrst = []
     print("\n\n", "=" * 50, file=_rrst_agv)
-    print(time.strftime("%Y-%m-%d %H:%M:S"), file=_rrst_agv, flush=True)
+    print(time.strftime("%Y-%m-%d %H:%M:%S"), file=_rrst_agv, flush=True)
     for sleep_t in sleep_times:
-        print(f"\nWait Time: {sleep_t}", file=_rrst_agv, )
+        print(
+            f"\nWait Time: {sleep_t}",
+            file=_rrst_agv,
+        )
         for args in bs:
             p = multiprocessing.Process(
-                target=main,
-                args=args,
-                kwargs={"wait_time": sleep_t}
+                target=main, args=args, kwargs={"wait_time": sleep_t}
             )
             p.start()
             while p.pid is None:
@@ -109,8 +121,6 @@ def bench():
                 time.sleep(1)
             _rrst.append(rst)
             name = "_".join(str(_) for _ in args)
-            # json.dump(rst, open(name + ".json", "w"))
-            # print('\n'.join(f'{x}, {y}'  for x, y in rst), file=open(name + ".txt", "w"))
             cpus, mems = list(zip(*rst))
             print(
                 f"{name} TIME: {len(rst)}s  CPU: [{sum(cpus) / len(cpus):.2f}s]  "
@@ -118,7 +128,6 @@ def bench():
                 file=_rrst_agv,
                 flush=True,
             )
-   
 
     _m_len = max(len(_) for _ in _rrst)
     _rrst = [l.append((0, 0)) for l in _rrst for _ in range(_m_len - len(l))]

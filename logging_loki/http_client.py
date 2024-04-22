@@ -1,12 +1,9 @@
-
-
-
 from functools import cached_property
 from http.client import HTTPConnection, HTTPException, HTTPSConnection
 import threading
 import time
 
-from logging_loki.handler import debuger_print
+from logging_loki.tools import debugger_print
 
 
 class HttpClient:
@@ -42,7 +39,7 @@ class HttpClient:
         return _c
 
     def _post(self, data: str | bytes) -> int:
-        print('_post')
+        print("_post")
         with threading.Lock():
             try:
                 h = self.get_client()
@@ -51,15 +48,15 @@ class HttpClient:
                     h.putheader(hdr, value)
                 h.endheaders(data)
                 res = h.getresponse()
-                debuger_print(f"LokiHandler HTTP {res.status}: {res.read()}")
+                debugger_print(f"LokiHandler HTTP {res.status}: {res.read()}")
                 if 200 <= res.status <= 299:
                     return 200
                 return False
             except HTTPException as _e:
-                debuger_print(f"LokiHandler HTTPClient Error: {_e}")
+                debugger_print(f"LokiHandler HTTPClient Error: {_e}")
                 return -1
             except Exception as _e:
-                debuger_print(_e)
+                debugger_print(_e)
                 return -2
 
     def post(self, data) -> bool:
@@ -75,4 +72,3 @@ class HttpClient:
             finally:
                 retry_times += 1
         return False
-

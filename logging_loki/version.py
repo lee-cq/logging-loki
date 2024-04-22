@@ -1,4 +1,3 @@
-
 """
 0.0.1 - 基本功能完成
     1. LokiHandler 能够向Loki提交数据
@@ -17,9 +16,12 @@
     1. 添加metadata字段以区分tags
     2. 完善测试输出
 
+0.1.3 -
+    1. 抽离loki_client, 并使client同时支持requests and httpx.
 
-TODO 优化CPU和内存占用
+
+TODO 优化CPU和内存占用, 分片压缩CPU占用高，否则内存占用高。
 TODO 减少外部依赖（弃用HTTPX，使用原生的HTTP方案）
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

@@ -5,10 +5,10 @@ from logging_loki.handler import LokiHandler
 
 
 handler = LokiHandler(
-    level="DEBUG",
     loki_url=os.getenv("LOKI_URL"),
     username=os.getenv("LOKI_USERNAME"),
     password=os.getenv("LOKI_PASSWORD"),
+    level="DEBUG",
     tags={"app": "test_loki_headler"},
 )
 
@@ -32,9 +32,9 @@ streams = [
                 ),
                 {"i": str(i)},
             ]
-            
         ],
-    }for i in range(57000)
+    }
+    for i in range(57000)
 ]
 
 # print(streams)
