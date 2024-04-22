@@ -50,7 +50,7 @@ class LokiHandler(Handler):
 
     def setFormatter(self, fmt: Formatter | None) -> None:
         if not isinstance(fmt, LokiFormatter):
-            raise TypeError(f"fmt 必须是 LokiFormartter 或其子类 [{type(fmt)}]")
+            raise TypeError(f"fmt 必须是 LokiFormater 或其子类 [{type(fmt)}]")
 
         return super().setFormatter(fmt)
 

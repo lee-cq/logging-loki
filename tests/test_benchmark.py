@@ -8,7 +8,7 @@ import time
 import psutil
 
 from logging_loki.handler import LokiHandler
-from logging_loki.formater import DEFUALT_FIELD_MAX
+from logging_loki.formater import DEFAULT_FIELD_MAX
 
 
 def get_argv(index, default=None):
@@ -55,7 +55,7 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
         tags={
             "app": "test_benchmark",
         },
-        included_field=DEFUALT_FIELD_MAX,
+        included_field=DEFAULT_FIELD_MAX,
         fmt="[%(asctime)s] - %(module)s:%(lineno)d - %(levelname)s - %(message)s",
     )
 

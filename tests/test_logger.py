@@ -1,9 +1,8 @@
 import logging
 import os
-import time
 
 from logging_loki.handler import LokiHandler
-from logging_loki.formater import DEFUALT_FIELD_MAX
+from logging_loki.formater import DEFAULT_FIELD_MAX
 
 logger = logging.getLogger("aa")
 
@@ -13,15 +12,14 @@ handler = LokiHandler(
     password=os.getenv("LOKI_PASSWORD"),
     level="DEBUG",
     thread_pool_size=0,
-    tags={"service_name": "test_loki_headler"},
-    included_field=DEFUALT_FIELD_MAX,
+    tags={"service_name": "test_loki_handler"},
+    included_field=DEFAULT_FIELD_MAX,
     verify=False,
 )
 ch = logging.StreamHandler()
 ch.setLevel("DEBUG")
 
 logger.addHandler(handler)
-# logger.addHandler(ch)
 logger.setLevel("DEBUG")
 
 

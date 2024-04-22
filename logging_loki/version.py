@@ -9,7 +9,7 @@
 
 0.1.1 - 
     1. LokiHandler 添加额外的控制参数:
-        gzipd 是否进行Gzip压缩, 默认: True
+        gzipped 是否进行Gzip压缩, 默认: True
         flush_interval 刷写到Loki的时间间隔, 默认: 2s
 
 0.1.2 - 
