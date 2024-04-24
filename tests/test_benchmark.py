@@ -4,6 +4,7 @@ import random
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import psutil
 
@@ -27,14 +28,18 @@ PUT_TIME = int(get_argv(4, 2))
 logger = logging.getLogger("logging-loki.test_benchmark")
 
 
-def error(times):
+def error(times, wait=False):
+    if wait:
+        time.sleep(random.random() / 100)
     try:
         100 / 0
     except Exception as _e:
         logger.error(f"Error: {_e}", exc_info=_e, extra={"metadata": {"t": times}})
 
 
-def info(times):
+def info(times, wait=False):
+    if wait:
+        time.sleep(random.random() / 100)
     _log = "".join(
         random.choices(
             "qwertyuiopasdfghjkl;zxcvbnm,./1234567890-=`!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:ZXCVBNM<>?",
@@ -44,7 +49,9 @@ def info(times):
     logger.info(_log, extra={"matadata": {"t": times}})
 
 
-def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001):
+def main(
+    size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001, thread=False
+):
     handler = LokiHandler(
         loki_url=os.getenv("LOKI_URL"),
         username=os.getenv("LOKI_USERNAME"),
@@ -76,25 +83,29 @@ def main(size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001)
     logger.setLevel("INFO")
     logger.addHandler(handler if h_type == "loki" else h_std)
 
-    for i in range(size // 2):
-        if h_type == "file":
-            print(f"\r {i} / {size}        ", end="")
-        time.sleep(wait_time)
-        info(i)
-        error(i)
+    with ThreadPoolExecutor(100, "logs_") as pool:
+        for i in range(size // 2):
+            if h_type == "file":
+                print(f"\r {i * 2} / {size}    ", end="")
+            time.sleep(wait_time)
+            pool.submit(info, i, True)
+            pool.submit(error, i, True)
 
 
 def bench():
     """"""
     bs = (
-        (1_000_00, "file", True, 1),
-        (1_000_00, "loki", True, 1),
-        (1_000_00, "loki", False, 1),
+        # Size     target   gzip  put_time
+        (
+            1_000_00,
+            "file",
+            True,
+            2,
+        ),
+        (1_000_00, "loki", True, 2),
+        (1_000_00, "loki", False, 2),
     )
-    sleep_times = (
-        0.00001,
-        0.001,
-    )
+    sleep_times = (0.00001, 0.001)
 
     import multiprocessing
 

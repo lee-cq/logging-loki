@@ -4,7 +4,9 @@ Loki Client for Python
 负责处理Loki上传相关事宜
 """
 
+import abc
 import gzip
+import io
 import queue
 import threading
 import time
@@ -23,6 +25,85 @@ except ImportError:
         raise ImportError("You need to install requests or httpx to use LokiClient")
 
 DEFAULT_UA = f"logging-loki/{__version__} Python {py_version}"
+
+
+class MetaBuffer(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def write(self, data):
+        raise NotImplemented
+
+    def stop(self):
+        pass
+
+    @abc.abstractmethod
+    def get_streams(self):
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def streams_count(self):
+        raise NotImplemented
+
+    @abc.abstractmethod
+    def streams_size(self):
+        raise NotImplemented
+
+
+class StreamsBytesIO(io.BytesIO, MetaBuffer):
+
+    def __init__(self):
+        super().__init__()
+        self.write_size = 0
+        self.write_times = 0
+        super().write(b'{"streams":[')
+
+    def write(self, __buffer):
+        self.write_size += super().write(__buffer)
+        self.write_times += 1
+
+    def stop(self):
+        super().write(b"]}")
+
+    def get_streams(self):
+        _val = self.getvalue()
+        self.close()
+        return _val
+
+    def streams_count(self):
+        return self.write_times
+
+    def streams_size(self):
+        return self.write_size
+
+
+class StreamsGzip(gzip.GzipFile, MetaBuffer):
+
+    def __init__(self, compresslevel=9):
+        self.buf = io.BytesIO()
+        self.write_times = 0
+        self.write_size = 0
+        super().__init__(fileobj=self.buf, mode="wb", compresslevel=compresslevel)
+        super().write(b'{"streams":[')
+
+    def write(self, data):
+        self.write_size += super().write(data)
+        self.write_times += 1
+
+    def stop(self):
+        super().write(b"]}")
+        self.flush()
+
+    def get_streams(self):
+        _val = self.buf.getvalue()
+        self.close()
+        self.buf.close()
+        return _val
+
+    def streams_size(self):
+        return self.write_size
+
+    def streams_count(self):
+        return self.write_times
 
 
 class LokiClient(Client):
@@ -75,7 +156,7 @@ class LokiClient(Client):
         self.total_lost_logs = 0
         self.last_flush_time: float = 0
         self.lock = threading.RLock()
-        self.buffer = queue.SimpleQueue()
+        self.buffer = self.new_buffer()
         if thread_pool_size > 0:
             self.t_pool = ThreadPoolExecutor(
                 thread_pool_size,
@@ -90,9 +171,23 @@ class LokiClient(Client):
     def close(self) -> None:
         self._is_closed = True
         with self.lock:
+            if self.buffer.streams_count() == 0:
+                return
+            self.buffer.write(b"{}")
             self.flush()
             if self.thread_pool_size > 0:
                 self.t_pool.shutdown(wait=True)
+
+    def new_buffer(self) -> MetaBuffer:
+        return StreamsGzip() if self.gzipped else StreamsBytesIO()
+
+    def should_flush(self):
+        """检查Buffer是否满了或者日志级别达到flushLevel"""
+        return (
+            time.time() - self.last_flush_time > self.flush_interval
+            or self.buffer.streams_count() > self.flush_size
+            or self.buffer.streams_size() > 2048_000
+        )
 
     def put_stream(self, data: bytes | str):
         """向队列中添加数据"""
@@ -100,54 +195,35 @@ class LokiClient(Client):
             raise Exception("LokiClient is closed")  # TODO
         if isinstance(data, str):
             data = data.encode("utf-8")
-        if self.gzipped:
-            data = gzip.compress(data)
-        self.buffer.put(data)
-
-        if self.should_flush():
-            self.last_flush_time = time.time()
-            # noinspection PyProtectedMember
-            if self.thread_pool_size > 0 and not self.t_pool._shutdown:
-                self.t_pool.submit(self.flush)
-            else:
-                self.flush()
-
-    def get_all(self):
         with self.lock:
-            return [self.buffer.get_nowait() for _ in range(self.buffer.qsize())]
+            if self.should_flush():
+                self.buffer.write(data)
+                self.flush()
+                self.last_flush_time = time.time()
+            else:
+                self.buffer.write(data + b",")
 
-    def should_flush(self):
-        """检查Buffer是否满了或者日志级别达到flushLevel"""
-        return (
-            time.time() - self.last_flush_time > self.flush_interval
-            or self.buffer.qsize() > 10000
-        )
+    def flush(self):
+        if self.buffer.streams_count() == 0:
+            return
+        stopped_buffer = self.buffer
+        self.buffer = self.new_buffer()
+        stopped_buffer.stop()
 
-    gz_comma = gzip.compress(b",")
-    gz_stream_header = gzip.compress(b'{"streams":[')
-    gz_stream_footer = gzip.compress(b"]}")
-
-    def flush(self) -> bool:
-        streams = self.get_all()
-        if not streams:
-            return True
-
-        if self.gzipped:
-            post_streams = (
-                self.gz_stream_header
-                + self.gz_comma.join(streams)
-                + self.gz_stream_footer
-            )
+        if self.thread_pool_size > 0 and not self.t_pool._shutdown:
+            self.t_pool.submit(self.post_streams, stopped_buffer)
         else:
-            post_streams = b'{"streams":[' + b",".join(streams) + b"]}"
-        _size = len(post_streams)
+            self.post_streams(stopped_buffer)
 
+    def post_streams(self, stopped_buffer) -> bool:
+        """"""
+        post_streams = stopped_buffer.get_streams()
         retry = 0
-        while retry < 3:
+        while retry < 1:
             time.sleep(retry)
             debugger_print(
-                f"[{time.strftime('%Y-%m-%d %H:%M:%S.')}]LOKI LOGGING flush logs {len(streams)}, "
-                f"data size {beautify_size(_size)} [{'Gzipped' if self.gzipped else 'NonGzipped'}], "
+                f"[{time.strftime('%Y-%m-%d %H:%M:%S.')}]LOKI LOGGING flush logs {stopped_buffer.streams_count()}, "
+                f"data size {beautify_size(stopped_buffer.streams_size())} [{'Gzipped' if self.gzipped else 'NonGzipped'}], "
                 f"retry {retry}"
             )
             try:
@@ -160,6 +236,11 @@ class LokiClient(Client):
                 debugger_print(f"HTTP STATUS: {res.status_code} - {res.text}")
                 if 200 <= res.status_code < 300:
                     return True
+                if res.status_code == 400:
+                    debugger_print(
+                        "BODY:",
+                        gzip.decompress(post_streams) if self.gzipped else post_streams,
+                    )
 
             except Exception as _e:
                 debugger_print(f"HTTPError {_e}")
@@ -167,7 +248,8 @@ class LokiClient(Client):
             finally:
                 retry += 1
 
-        self.total_lost_logs += len(streams)
+        self.total_lost_logs += stopped_buffer.streams_count()
         raise RuntimeError(
-            f"多次推送失败, 舍弃日志数量: {len(streams)} / total: {self.total_lost_logs}"
+            f"多次推送失败, 舍弃日志数量: "
+            f"{stopped_buffer.streams_count()} / total: {self.total_lost_logs}"
         )
