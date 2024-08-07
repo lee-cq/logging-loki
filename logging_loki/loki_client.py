@@ -7,6 +7,7 @@ Loki Client for Python
 import abc
 import gzip
 import io
+import json
 import queue
 import threading
 import time
@@ -202,6 +203,20 @@ class LokiClient(Client):
                 self.last_flush_time = time.time()
             else:
                 self.buffer.write(data + b",")
+
+    def put_stream_dict(
+        self,
+        msg: str,
+        labels: dict[str, str],
+        metadata: dict[str, str] = None,
+    ):
+        stream = {
+            "stream": labels,
+            "values": [
+                [str(int(time.time() * 1_000_000_000)), msg, metadata],
+            ],
+        }
+        return self.put_stream(json.dumps(stream))
 
     def flush(self):
         if self.buffer.streams_count() == 0:
