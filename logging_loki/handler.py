@@ -23,7 +23,7 @@ class LokiHandler(Handler):
         flush_interval: int = 2,  # 将缓存刷写到Loki的时间频率， 默认2秒
         flush_size: int = 10000,  # 将缓存中允许的最大值
         thread_pool_size: int = 3,  # 刷写线程池大小，如果为0，将使用同步上传
-        verify: bool = True,
+        verify: bool = True,  # SSL 验证
         tags: dict = None,  # 使用的TAG
         included_field: tuple | list | set = None,  # 包含的logging字段，默认全部字段
         fmt: str = None,  # message的格式，默认simple

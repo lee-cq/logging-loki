@@ -1,6 +1,67 @@
 # logging-loki
 Python logging handler for Loki.
 
+# 用法
+
+`pip install logging-loki`
+
+##  直接使用
+```python
+from logging_loki import LokiHandler
+
+handler = LokiHandler(
+    loki_url=os.getenv("LOKI_URL"),
+    username=os.getenv("LOKI_USERNAME"),
+    password=os.getenv("LOKI_PASSWORD"),
+    level="DEBUG",
+    thread_pool_size=0,
+    tags={"service_name": "test_loki_handler"},
+    included_field=DEFAULT_FIELD_MAX,
+    gzipped=False,
+    verify=False,
+)
+
+logger = logging.getLogger()
+logger.addHandler(handler)
+logger.setLevel("DEBUG")
+
+logger.info("test ok.")
+logger.debug("test debug...")
+```
+## 使用配置字典
+
+```python
+import logging.config
+import logging
+
+config_dict = {
+    "version": 1,
+    "handlers": {
+        "loki": {
+            "class": "logging_loki.LokiHandler",
+            "loki_url": "http://localhost:3100/loki/api/v1/push",
+            "username": "test",
+            "password": "test",
+            "thread_pool_size": 5,
+            "tags": {"service_name": "test_loki_handler"},
+            "gzipped": True,  # 传输时使用Gzip压缩
+            "verify": False,  # SSL验证
+        }
+    },
+    "root": {
+        "level": "DEBUG",
+        "handers": ["loki"],
+    },
+}
+
+logging.config.dictConfig(config_dict)
+logger = logging.getLogger()
+
+logger.info("test info ok.")
+
+```
+
+
 # Benchmark
 
 > Push Logs to Grafana Cloud, Free plan.

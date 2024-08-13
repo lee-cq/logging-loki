@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from logging_loki.handler import LokiHandler
 from logging_loki.formater import DEFAULT_FIELD_MAX
@@ -40,3 +41,4 @@ logger.setLevel("DEBUG")
 print("level", handler.level)
 logger.info("test ok.")
 logger.info("test debug...")
+time.sleep(2)
