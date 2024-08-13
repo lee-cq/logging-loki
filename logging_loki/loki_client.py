@@ -5,25 +5,22 @@ Loki Client for Python
 """
 
 import abc
+import base64
 import gzip
 import io
 import json
+import os
 import queue
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from sys import version as py_version
+from urllib.parse import urlparse
 
+from logging_loki import http_client
 from logging_loki.tools import debugger_print, beautify_size
 from logging_loki.version import __version__
 
-try:
-    from requests import Session as Client
-except ImportError:
-    try:
-        from httpx import Client as Client
-    except ImportError:
-        raise ImportError("You need to install requests or httpx to use LokiClient")
 
 DEFAULT_UA = f"logging-loki/{__version__} Python {py_version}"
 
@@ -107,7 +104,7 @@ class StreamsGzip(gzip.GzipFile, MetaBuffer):
         return self.write_times
 
 
-class LokiClient(Client):
+class LokiClient:
 
     def __init__(
         self,
@@ -132,7 +129,7 @@ class LokiClient(Client):
             raise ValueError()
 
         self._is_closed = False
-        self.loki_url = loki_url
+        self.loki_url = urlparse(loki_url)
         self.gzipped = gzipped
         self.flush_interval = flush_interval
         self.flush_size = flush_size
@@ -152,22 +149,24 @@ class LokiClient(Client):
                 raise ValueError()
 
         if username:
-            self.auth = (username, password)
+            self.set_auth(username, password)
 
         self.total_lost_logs = 0
         self.last_flush_time: float = 0
         self.lock = threading.RLock()
         self.buffer = self.new_buffer()
-        if thread_pool_size > 0:
-            self.t_pool = ThreadPoolExecutor(
-                thread_pool_size,
-                thread_name_prefix="loki-uploader-",
-            )
+        self.t_pool = http_client.ConnectionPool(
+            self.loki_url.scheme, self.loki_url.netloc, max(thread_pool_size, 1)
+        )
 
-    def is_closed(self) -> bool:
-        if hasattr(Client, "is_closed"):
-            self._is_closed = getattr(Client, "is_closed")()
-        return self._is_closed
+    def set_auth(self, username: str, password: str = ""):
+        b64 = base64.b64encode(f"{username}:{password}".encode()).decode()
+        self.headers["Authorization"] = f"Basic {b64}"
+
+    # def is_closed(self) -> bool:
+    #     if hasattr(Client, "is_closed"):
+    #         self._is_closed = getattr(Client, "is_closed")()
+    #     return self._is_closed
 
     def close(self) -> None:
         self._is_closed = True
@@ -176,8 +175,7 @@ class LokiClient(Client):
                 return
             self.buffer.write(b"{}")
             self.flush()
-            if self.thread_pool_size > 0:
-                self.t_pool.shutdown(wait=True)
+            self.t_pool.shutdown(wait=True)
 
     def new_buffer(self) -> MetaBuffer:
         return StreamsGzip() if self.gzipped else StreamsBytesIO()
@@ -225,46 +223,37 @@ class LokiClient(Client):
         self.buffer = self.new_buffer()
         stopped_buffer.stop()
 
-        if self.thread_pool_size > 0 and not self.t_pool._shutdown:
-            self.t_pool.submit(self.post_streams, stopped_buffer)
-        else:
-            self.post_streams(stopped_buffer)
+        self.post_streams(stopped_buffer)
 
     def post_streams(self, stopped_buffer) -> bool:
         """"""
         post_streams = stopped_buffer.get_streams()
         retry = 0
-        while retry < 1:
-            time.sleep(retry)
-            debugger_print(
+        time.sleep(retry)
+        if os.getenv("LOKI_LOGGING_DEBUG"):
+            print(
                 f"[{time.strftime('%Y-%m-%d %H:%M:%S.')}]LOKI LOGGING flush logs {stopped_buffer.streams_count()}, "
                 f"data size {beautify_size(stopped_buffer.streams_size())} [{'Gzipped' if self.gzipped else 'NonGzipped'}], "
                 f"retry {retry}"
             )
-            try:
-                if Client.__name__ == "Session":
-                    # noinspection PyTypeChecker
-                    res = self.post(self.loki_url, data=post_streams)
-                else:
-                    res = self.post(self.loki_url, content=post_streams)
 
-                debugger_print(f"HTTP STATUS: {res.status_code} - {res.text}")
-                if 200 <= res.status_code < 300:
-                    return True
-                if res.status_code == 400:
-                    debugger_print(
-                        "BODY:",
-                        gzip.decompress(post_streams) if self.gzipped else post_streams,
-                    )
+        if self.thread_pool_size > 0 and not self.t_pool._shutdown:
+            self.t_pool.submit_request(
+                "POST",
+                self.loki_url.path,
+                post_streams,
+                headers=self.headers,
+            )
+        else:
+            self.t_pool.request(
+                "POST",
+                self.loki_url.path,
+                post_streams,
+                headers=self.headers,
+            )
 
-            except Exception as _e:
-                debugger_print(f"HTTPError {_e}")
-
-            finally:
-                retry += 1
-
-        self.total_lost_logs += stopped_buffer.streams_count()
-        raise RuntimeError(
-            f"多次推送失败, 舍弃日志数量: "
-            f"{stopped_buffer.streams_count()} / total: {self.total_lost_logs}"
-        )
+        # self.total_lost_logs += stopped_buffer.streams_count()
+        # raise RuntimeError(
+        #     f"多次推送失败, 舍弃日志数量: "
+        #     f"{stopped_buffer.streams_count()} / total: {self.total_lost_logs}"
+        # )
