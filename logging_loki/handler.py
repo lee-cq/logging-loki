@@ -73,7 +73,7 @@ class LokiHandler(Handler):
             self.handleError(record)  # "self.formatter.format 必须返回一个Dict"
             return
 
-        self.loki_client.put_stream(json.dumps(stream))
+        self.loki_client.push_wait(stream["stream"], stream["values"])
 
     def close(self) -> None:
         super().close()

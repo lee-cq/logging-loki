@@ -91,7 +91,7 @@ class LokiFormatter(Formatter):
             },
             "values": [
                 [
-                    str(int(record.created * 1_000_000_000)),
+                    int(record.created * 1_000_000_000),
                     super().format(record=record),
                     metadata,
                 ],
