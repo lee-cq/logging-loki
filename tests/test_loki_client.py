@@ -13,7 +13,7 @@ def load_env():
     def _load(ss: list):
         for s in ss:
             s = s.strip(" ").strip("\t")
-            if s.startswith("#"):
+            if s.startswith("#") or s == "":
                 continue
             k, v = s.split("=", 1)
             os.environ[k] = v

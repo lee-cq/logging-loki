@@ -144,7 +144,6 @@ class LokiClient(ThreadPoolExecutor):
         with self.p_lock:
             self.push_request.streams.append(stream)
         if self.shoud_flush():
-            self.last_flush = time.time()
             self.flush()
 
     def shoud_flush(self) -> bool:
@@ -166,6 +165,7 @@ class LokiClient(ThreadPoolExecutor):
             push_req_data: bytes = snappy.compress(
                 self.push_request.SerializeToString()
             )
+            self.last_flush = time.time()
             self.push_request.Clear()
 
         if os.getenv("LOKI_LOGGING_DEBUG", "").upper() == "TRUE":
