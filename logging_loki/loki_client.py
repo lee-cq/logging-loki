@@ -83,6 +83,7 @@ class LokiClient(ThreadPoolExecutor):
 
         self.last_flush = 0
         self.max_cache_size = max_cache_size
+        self.cache_size = max_cache_size
         self.max_cache_stream = max_cache_stream
         self.flush_interval = flush_interval
         self.pool_size = thread_pool_size
@@ -148,6 +149,10 @@ class LokiClient(ThreadPoolExecutor):
 
     def shoud_flush(self) -> bool:
         """判定需要刷写的条件"""
+        if self._work_queue.qsize() > 1:
+            self.max_cache_size *= 2
+        else:
+            self.max_cache_size = self.cache_size
         return (
             self.push_request.ByteSize() > self.max_cache_size
             or len(self.push_request.streams) > self.max_cache_stream
