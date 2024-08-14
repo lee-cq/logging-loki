@@ -5,7 +5,7 @@ on:
 
 env:
   LOKI_URL: ${{secrets.LOKI_URL}}
-  LOKI_USERNAME: ${{secrets.LOKI_UESRNAME}}
+  LOKI_USERNAME: ${{secrets.LOKI_USERNAME}}
   LOKI_PASSWORD: ${{secrets.LOKI_PASSWORD}}
 
 jobs:
@@ -13,7 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
+      max-parallel: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -21,10 +22,12 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
       - name: setup packages
-        run: pip install -U pip && pip install -e .
+        run: pip install -U pip && pip install psutil && pip install -e .
 
       - name: Run
         env:
-          LOKI_LOGGING_DEBUG: true
+          LOKI_LOGGING_DEBUG: "TRUE"
         run: python tests/test_benchmark.py
-        
+
+      - name: result
+        run: cat AA_rest_agv.txt

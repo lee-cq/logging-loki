@@ -19,9 +19,6 @@ def get_argv(index, default=None):
         return default
 
 
-# SIZE = int(get_argv(1, 1_000))
-# H_TYPE = get_argv(2, "loki")
-# GZIP = bool(get_argv(3, "true").lower() in ["t", "true", "1"])
 PUT_TIME = int(get_argv(4, 2))
 
 
@@ -82,8 +79,8 @@ def main(size=10_000, h_type="loki", put_time=2, wait_time=0.00001):
 
     with ThreadPoolExecutor(100, "logs_") as pool:
         for i in range(size // 2):
-            if h_type == "file":
-                print(f"\r {i * 2} / {size}    ", end="")
+            if h_type == "file" and i % 2000 == 0:
+                print(f"\r {i * 2} / {size} ({i*2/size:.2f} %)   ", end="")
             time.sleep(wait_time)
             pool.submit(info, i, True)
             pool.submit(error, i, True)
@@ -149,5 +146,6 @@ if __name__ == "__main__":
 
     try:
         bench()
+        print(open("AA_rest_agv.txt").read())
     except:
         pass
