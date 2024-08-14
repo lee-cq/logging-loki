@@ -78,3 +78,4 @@ class LokiHandler(Handler):
     def close(self) -> None:
         super().close()
         self.loki_client.close()
+        # BUG 程序无法正常退出

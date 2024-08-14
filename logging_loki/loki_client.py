@@ -91,9 +91,8 @@ class LokiClient(ThreadPoolExecutor):
 
     def close(self):
         self.__closed = True
-        with self.p_lock:
-            self.flush()
-            self.shutdown(wait=True)
+        self.flush()
+        self.shutdown(wait=True)
 
     def __exit__(self):
         self.close()
@@ -124,10 +123,11 @@ class LokiClient(ThreadPoolExecutor):
         if self.__closed:
             raise RuntimeError()
 
+        labels.update(self.labels)
         stream = loki_push_pb2.StreamAdapter(labels=self.label_to_string(labels))
 
         for line in lines:
-            debugger_print("> Push Line:", line)
+            # debugger_print("> Push Line:", line)
             stream.entries.append(
                 loki_push_pb2.EntryAdapter(
                     timestamp=loki_push_pb2.Timestamp(
@@ -161,7 +161,7 @@ class LokiClient(ThreadPoolExecutor):
             _push_size = self.push_request.ByteSize()
             if _push_size == 0:
                 return
-            debugger_print("> Push Data: ", self.push_request.SerializeToString())
+            # debugger_print("> Push Data: ", self.push_request.SerializeToString())
             count_request = len(self.push_request.streams)
             push_req_data: bytes = snappy.compress(
                 self.push_request.SerializeToString()
@@ -202,13 +202,14 @@ class LokiClient(ThreadPoolExecutor):
             return
         try:
             conn = self.connections[threading.get_ident()]
-            debugger_print("> URI:", url)
-            debugger_print("> HEADER: ", headers)
-            debugger_print("> BODY: ", body)
+            # debugger_print("> URI:", url)
+            # debugger_print("> HEADER: ", headers)
+            # debugger_print("> BODY: ", body)
             conn.request(method, url, body, headers, encode_chunked=encode_chunked)
             resp = conn.getresponse()
+            resp_body = resp.read().decode()
             if 200 <= resp.status <= 299:
-                debugger_print(f"[]Push Success.")
+                debugger_print(f"[{resp.status}]Push Success. {resp_body}")
                 return
             elif 300 <= resp.status <= 399:
                 debugger_print("请求已经重定向...")
@@ -245,7 +246,7 @@ class LokiClient(ThreadPoolExecutor):
             )
 
         except Exception as _e:
-            print("ClassName:", _e.__class__(), "Message:", _e)
+            print("[ClassName:]", _e.__class__, "[Message:]", _e)
 
         finally:
             # Clear 关闭的线程的连接
