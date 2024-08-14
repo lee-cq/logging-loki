@@ -4,11 +4,6 @@ from logging import Formatter, Handler
 from logging_loki.loki_client import LokiClient
 from logging_loki.formater import LokiFormatter
 
-try:
-    import orjson as json
-except ImportError:
-    import json
-
 
 class LokiHandler(Handler):
     """Loki日志发送"""
@@ -19,12 +14,13 @@ class LokiHandler(Handler):
         username: str = None,
         password: str = None,
         level: int | str = "ERROR",
-        gzipped: bool = True,  # 上传的BODY是否进行GZIP压缩
         flush_interval: int = 2,  # 将缓存刷写到Loki的时间频率， 默认2秒
-        flush_size: int = 10000,  # 将缓存中允许的最大值
+        max_cache_size: int = 102400,  # 缓存中的条目允许的内存占用的最大值
+        max_cache_stream: int = 1000,  # 最多缓存的条目
         thread_pool_size: int = 3,  # 刷写线程池大小，如果为0，将使用同步上传
-        verify: bool = True,  # SSL 验证
+        ssl_verify: bool = True,
         tags: dict = None,  # 使用的TAG
+        ua: str = None,
         included_field: tuple | list | set = None,  # 包含的logging字段，默认全部字段
         fmt: str = None,  # message的格式，默认simple
         fqdn: bool = False,  # 主机名是否是FQDN格式
@@ -37,11 +33,12 @@ class LokiHandler(Handler):
             loki_url=loki_url,
             username=username,
             password=password,
-            gzipped=gzipped,
-            flush_interval=flush_interval,
-            flush_size=flush_size,
-            thread_pool_size=thread_pool_size,
-            verify=verify,
+            flush_interval=flush_interval,  # 将缓存刷写到Loki的时间频率， 默认2秒
+            max_cache_size=max_cache_size,  # 缓存中的条目允许的内存占用的最大值
+            max_cache_stream=max_cache_stream,  # 最多缓存的条目
+            thread_pool_size=thread_pool_size,  # 刷写线程池大小，如果为0，将使用同步上传
+            ssl_verify=ssl_verify,
+            ua=ua,
             **kwargs,
         )
         self.setFormatter(

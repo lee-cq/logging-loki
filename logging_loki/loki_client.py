@@ -10,6 +10,7 @@ import threading
 import time
 import typing
 import socket
+import http.client as http_client
 from sys import version as py_version
 from urllib.parse import urlparse
 from http.client import HTTPConnection, HTTPSConnection
@@ -63,7 +64,7 @@ class LokiClient(ThreadPoolExecutor):
         )
         self.loki_url = urlparse(loki_url)
         self.headers = {
-            "User-Agent": ua,
+            "User-Agent": ua or DEFAULT_UA,
             "Content-Type": "application/x-protobuf",
             "Content-Encoding": "snappy",
         }
@@ -207,7 +208,7 @@ class LokiClient(ThreadPoolExecutor):
             return
         try:
             conn = self.connections[threading.get_ident()]
-            # debugger_print("> URI:", url)
+            # debugger_print("> URI:", url, "[ALL]:", str(self.loki_url))
             # debugger_print("> HEADER: ", headers)
             # debugger_print("> BODY: ", body)
             conn.request(method, url, body, headers, encode_chunked=encode_chunked)
@@ -239,7 +240,7 @@ class LokiClient(ThreadPoolExecutor):
                 encode_chunked=encode_chunked,
                 retry=retry - 1,
             )
-        except (socket.gaierror, ConnectionRefusedError):
+        except (socket.gaierror, ConnectionRefusedError, http_client.CannotSendRequest):
             del self.connections[threading.get_ident()]
             self._request(
                 method,
@@ -252,6 +253,7 @@ class LokiClient(ThreadPoolExecutor):
 
         except Exception as _e:
             print("[ClassName:]", _e.__class__, "[Message:]", _e)
+            # raise _e
 
         finally:
             # Clear 关闭的线程的连接

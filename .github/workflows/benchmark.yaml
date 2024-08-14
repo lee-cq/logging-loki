@@ -27,7 +27,7 @@ jobs:
       - name: Run
         env:
           LOKI_LOGGING_DEBUG: "TRUE"
-        run: python tests/test_benchmark.py
+        run: python tests/benchmark.py
 
       - name: result
         run: cat AA_rest_agv.txt
