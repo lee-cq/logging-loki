@@ -1,9 +1,10 @@
 import os
+import time
 
 
 def debugger_print(*args, **kwargs):
     if os.getenv("LOKI_LOGGING_DEBUG"):
-        print(*args, **kwargs)
+        print(f'[{time.strftime("%Y-%m-%d %H:%M:%S")}]', *args, **kwargs)
 
 
 def beautify_size(size):

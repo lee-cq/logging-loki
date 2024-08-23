@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+message Timestamp {
+  int64 seconds = 1;
+  int32 nanos = 2;
+}
+
+message PushRequest {
+  repeated StreamAdapter streams = 1 ;
+}
+
+message StreamAdapter {
+  string labels = 1;
+  repeated EntryAdapter entries = 2;
+  // hash contains the original hash of the stream.
+  uint64 hash = 3;
+}
+
+message EntryAdapter {
+  Timestamp timestamp = 1 ;
+  string line = 2;
+  map<string, string> structuredMetadata = 3;
+}

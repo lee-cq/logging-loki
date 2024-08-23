@@ -19,9 +19,6 @@ def get_argv(index, default=None):
         return default
 
 
-# SIZE = int(get_argv(1, 1_000))
-# H_TYPE = get_argv(2, "loki")
-# GZIP = bool(get_argv(3, "true").lower() in ["t", "true", "1"])
 PUT_TIME = int(get_argv(4, 2))
 
 
@@ -49,15 +46,12 @@ def info(times, wait=False):
     logger.info(_log, extra={"matadata": {"t": times}})
 
 
-def main(
-    size=10_000, h_type="loki", gziped=True, put_time=2, wait_time=0.00001, thread=False
-):
+def main(size=10_000, h_type="loki", put_time=2, wait_time=0.00001):
     handler = LokiHandler(
         loki_url=os.getenv("LOKI_URL"),
         username=os.getenv("LOKI_USERNAME"),
         password=os.getenv("LOKI_PASSWORD"),
         level="INFO",
-        gzipped=gziped,
         flush_interval=put_time,
         tags={
             "app": "test_benchmark",
@@ -85,8 +79,8 @@ def main(
 
     with ThreadPoolExecutor(100, "logs_") as pool:
         for i in range(size // 2):
-            if h_type == "file":
-                print(f"\r {i * 2} / {size}    ", end="")
+            if h_type == "file" and i % 2000 == 0:
+                print(f"\r {i * 2} / {size} ({i*2/size:.2f} %)   ", end="")
             time.sleep(wait_time)
             pool.submit(info, i, True)
             pool.submit(error, i, True)
@@ -96,14 +90,8 @@ def bench():
     """"""
     bs = (
         # Size     target   gzip  put_time
-        (
-            1_000_00,
-            "file",
-            True,
-            2,
-        ),
-        (1_000_00, "loki", True, 2),
-        (1_000_00, "loki", False, 2),
+        (1_000_00, "file", 2),
+        (1_000_00, "loki", 2),
     )
     sleep_times = (0.00001, 0.001)
 
@@ -156,4 +144,8 @@ if __name__ == "__main__":
     # set -a; . .env ; set +a
     print("start.")
 
-    bench()
+    try:
+        bench()
+        print(open("AA_rest_agv.txt").read())
+    except:
+        pass
