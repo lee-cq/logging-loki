@@ -7,7 +7,11 @@ Python logging handler for Loki.
 
 ##  直接使用
 ```python
-from logging_loki import LokiHandler
+import os
+import logging
+
+from logging_loki import LokiHandler, formater
+
 
 handler = LokiHandler(
     loki_url=os.getenv("LOKI_URL"),
@@ -16,7 +20,7 @@ handler = LokiHandler(
     level="DEBUG",
     thread_pool_size=0,
     tags={"service_name": "test_loki_handler"},
-    included_field=DEFAULT_FIELD_MAX,
+    included_field=formater.DEFAULT_FIELD_MAX,
     gzipped=False,
     verify=False,
 )
@@ -44,7 +48,6 @@ config_dict = {
             "password": "test",
             "thread_pool_size": 5,
             "tags": {"service_name": "test_loki_handler"},
-            "gzipped": True,  # 传输时使用Gzip压缩
             "verify": False,  # SSL验证
         }
     },

@@ -9,22 +9,23 @@ class LokiHandler(Handler):
     """Loki日志发送"""
 
     def __init__(
-        self,
-        loki_url: str,
-        username: str = None,
-        password: str = None,
-        level: int | str = "ERROR",
-        flush_interval: int = 2,  # 将缓存刷写到Loki的时间频率， 默认2秒
-        max_cache_size: int = 102400,  # 缓存中的条目允许的内存占用的最大值
-        max_cache_stream: int = 1000,  # 最多缓存的条目
-        thread_pool_size: int = 3,  # 刷写线程池大小，如果为0，将使用同步上传
-        ssl_verify: bool = True,
-        tags: dict = None,  # 使用的TAG
-        ua: str = None,
-        included_field: tuple | list | set = None,  # 包含的logging字段，默认全部字段
-        fmt: str = None,  # message的格式，默认simple
-        fqdn: bool = False,  # 主机名是否是FQDN格式
-        **kwargs,
+            self,
+            loki_url: str,
+            username: str = None,
+            password: str = None,
+            level: int | str = "ERROR",
+            flush_interval: int = 2,  # 将缓存刷写到Loki的时间频率， 默认2秒
+            max_cache_size: int = 102400,  # 缓存中的条目允许的内存占用的最大值
+            max_cache_stream: int = 1000,  # 最多缓存的条目
+            thread_pool_size: int = 3,  # 刷写线程池大小，如果为0，将使用同步上传
+            ssl_verify: bool = True,
+            tags: dict = None,  # 使用的TAG
+            ua: str = None,
+            metadata: dict = None,  # 元数据
+            included_field: tuple | list | set = None,  # 包含的logging字段，默认全部字段
+            fmt: str = None,  # message的格式，默认simple
+            fqdn: bool = False,  # 主机名是否是FQDN格式
+            **kwargs,
     ) -> None:
         super().__init__(level)
 
@@ -42,7 +43,13 @@ class LokiHandler(Handler):
             **kwargs,
         )
         self.setFormatter(
-            LokiFormatter(fmt=fmt, tags=tags, included_field=included_field, fqdn=fqdn)
+            LokiFormatter(
+                fmt=fmt,
+                tags=tags,
+                metadata=metadata,
+                included_field=included_field,
+                fqdn=fqdn,
+            )
         )
 
     def setFormatter(self, fmt: Formatter | None) -> None:

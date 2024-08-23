@@ -65,11 +65,12 @@
 TODO 优化CPU和内存占用, 分片压缩CPU占用高，否则内存占用高。
 TODO 减少外部依赖（弃用HTTPX，使用原生的HTTP方案）
 
-0.3.0-a1
+0.3.1
     1. 不依赖第三方的HTTP客户端
     2. README添加用法
+    3. LokiHandler & LokiFormatter 支持自定义metadata字段
 
 
 """
 
-__version__ = "0.3.0-a1"
+__version__ = "0.3.1"

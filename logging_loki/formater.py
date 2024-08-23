@@ -51,6 +51,7 @@ class LokiFormatter(Formatter):
         validate: bool = True,
         *,
         tags: dict = None,
+        metadata: dict = None,
         included_field: tuple | list | set = None,
         fqdn: bool = False,
         defaults: Mapping[str, Any] | None = None,
@@ -64,6 +65,11 @@ class LokiFormatter(Formatter):
         ), f"tags 参数必须是dict or None, 而不是{type(tags)}"
         self.tags = tags if tags else dict()
 
+        assert isinstance(
+            tags, dict | None
+        ), f"metadata 参数必须是dict or None, 而不是{type(tags)}"
+        self.metadata = metadata if metadata else dict()
+
         self.included_field = included_field if included_field else DEFAULT_FIELD_MIN
 
     def format(self, record: LogRecord) -> dict:
@@ -76,6 +82,7 @@ class LokiFormatter(Formatter):
             recode_meta = dict()
 
         metadata = {
+            **self.metadata,
             **{str(k): str(v) for k, v in recode_meta.items()},
             **{
                 i: str(record.__dict__[i])
